@@ -23,6 +23,7 @@ jobs:
         id: branch-deploy
         with:
           trigger: ".deploy"
+          environment: "staging"
           stable_branch: staging
 
       # Run your deployment logic for your project here - examples seen below
