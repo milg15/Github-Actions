@@ -20,18 +20,6 @@ jobs:
       - uses: github/lock@v2.0.1
         id: lock
 
-      # Comment on the issue with the result of the lock action
-      - uses: actions/github-script@v3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            github.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: 'Issue by '
-            })
-
   deploy-to-staging:
     runs-on: ubuntu-latest
     if: github.event.issue.pull_request && contains(github.event.comment.body, '.deploy')
@@ -67,7 +55,7 @@ jobs:
           reaction: rocket
 
       - name: Exit if locked
-        if: ${{ steps.lock.outputs.locked == 'true' }}
+        if: steps.lock.outputs.locked == 'true'
         uses: actions/github-script@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
