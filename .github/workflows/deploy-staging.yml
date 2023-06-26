@@ -1,0 +1,66 @@
+name: deploy-to-staging-on-comment
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  lock-or-unlock:
+    if: ${{ github.event.issue.pull_request }} # only run on pull request comments
+    runs-on: ubuntu-latest
+    steps:
+      # Lock or Unlock via a comment (ex: .lock or .unlock)
+      - uses: github/lock@v2.0.1
+        id: lock
+
+      # Comment on the issue with the result of the lock action
+      - uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'Issue ' + (github.context.payload.action === 'locked' ? 'locked' : 'unlocked') + ' by ' + github.context.actor
+            })
+  deploy-to-staging:
+    runs-on: ubuntu-latest
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/deploy') # only run on pull request comments
+    steps:
+      - uses: github/lock@v2.0.1
+        id: lock
+        with:
+          mode: check
+
+      - name: Exit if locked
+        if: ${{ steps.lock.outputs.locked == 'locked' }}
+        run: |
+          echo "Lock status: ${{ steps.lock.outputs.locked }}"
+          echo "Locked by: ${{ steps.lock.outputs.locked_by }}"
+          exit 1
+
+      - uses: khan/pull-request-comment-trigger@v1.1.0
+        id: check
+        with:
+          trigger: "/deploy"
+          reaction: rocket
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Run deployment
+        if: ${{ steps.check.outputs.triggered == 'true' }}
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '/gcbrun'
+            })
