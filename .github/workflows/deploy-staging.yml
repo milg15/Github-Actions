@@ -72,16 +72,15 @@ jobs:
             echo "Lock status: ${{ steps.lock.outputs.locked }}"
             echo "Locked branch: ${{ steps.lock.outputs.branch }}"
             echo "Github context: ${{ toJson(github) }}"
-
-      - name: Run deployment
-        if: steps.lock.outputs.locked == 'false'
-        run: |
-          echo "Lock status: ${{ steps.lock.outputs.locked }}"
-          echo "Locked branch: ${{ steps.lock.outputs.branch }}"
-          echo DEPLOYED=TRUE >> $GITHUB_ENV
-      
+      - name: removelabel
+        uses: buildsville/add-remove-label@v2.0.0
+        with:
+          token: ${{secrets.GITHUB_TOKEN}}
+          labels: deploy
+          type: remove
+  
       - name: Exit if locked
-        if: steps.lock.outputs.locked == 'true'
+        if: steps.lock.outputs.locked == 'true' && !contains(steps.lock.outputs.branch, github.head_ref)
         uses: actions/github-script@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -92,4 +91,12 @@ jobs:
               repo: context.repo.repo,
               body: 'This is a failed deployment'
             })
+            # Exit the workflow
+            core.setFailed('This is a failed deployment')
     
+      - name: Run deployment
+        if: steps.lock.outputs.locked == 'false' || contains(steps.lock.outputs.branch, github.head_ref)
+        run: |
+          echo "Lock status: ${{ steps.lock.outputs.locked }}"
+          echo "Locked branch: ${{ steps.lock.outputs.branch }}"
+          echo DEPLOYED=TRUE >> $GITHUB_ENV
