@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   lock-or-unlock:
-    if: ${{ github.event.issue.pull_request && (contains(github.event.comment.body, '.lock') ||contains(github.event.comment.body, '.unlock')) }}
+    if: github.event.issue.pull_request && (contains(github.event.comment.body, '.lock') ||contains(github.event.comment.body, '.unlock'))
     runs-on: ubuntu-latest
     steps:
       # Lock or Unlock via a comment (ex: .lock or .unlock)
@@ -34,7 +34,7 @@ jobs:
 
   deploy-to-staging:
     runs-on: ubuntu-latest
-    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '.deploy') }}
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '.deploy')
     env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -52,9 +52,8 @@ jobs:
             echo "Lock status: ${{ steps.lock.outputs.locked }}"
             echo "Locked branch: ${{ steps.lock.outputs.branch }}"
 
-      - name: Exit if locked
-
-        if: ${{ steps.lock.outputs.locked == 'true' }} && ${{ contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch) != 'true' }}
+      - name: Run deployment
+        if: steps.lock.outputs.locked == 'true' && contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch)
         run: |
           echo "Lock status: ${{ steps.lock.outputs.locked }}"
           echo "Locked branch: ${{ steps.lock.outputs.branch }}"
@@ -67,8 +66,8 @@ jobs:
           trigger: ".deploy"
           reaction: rocket
 
-      - name: Run deployment
-        if: ${{ steps.check.outputs.triggered == 'true' }}
+      - name: Exit if locked
+        if: ${{ steps.check.outputs.triggered == 'false' }}
         uses: actions/github-script@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -77,5 +76,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '/gcbrun'
+              body: 'This is a failed deployment'
             })
