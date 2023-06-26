@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.issue.pull_request && contains(github.event.comment.body, '.deploy')
     env:
-        BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
+        BRANCH_NAME: ${{ github.ref_name || github.head_ref }} 
     steps:
       - uses: github/lock@v2.0.1
         id: lock
