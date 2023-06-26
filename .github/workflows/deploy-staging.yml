@@ -72,6 +72,7 @@ jobs:
             echo "Lock status: ${{ steps.lock.outputs.locked }}"
             echo "Locked branch: ${{ steps.lock.outputs.branch }}"
             echo "Github context: ${{ toJson(github) }}"
+            
       - name: removelabel
         uses: buildsville/add-remove-label@v2.0.0
         with:
