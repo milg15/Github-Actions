@@ -16,10 +16,42 @@ jobs:
     if: ${{ github.event.label.name == 'lock' }} 
     runs-on: ubuntu-latest
     steps:
-      # Lock or Unlock via a comment (ex: .lock or .unlock)
       - uses: github/lock@v2.0.1
         id: lock
+        with:
+          mode: check
 
+      # Lock or Unlock via a comment (ex: .lock or .unlock)
+      - name: Exit if locked
+        if: steps.lock.outputs.locked == 'false'
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '.lock'
+            })
+
+      - name: Exit if unlocked
+        if: steps.lock.outputs.locked == 'true'
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '.unlock'
+            })
+
+      - uses: github/lock@v2.0.1
+        if: success() 
+        with:
+          mode: lock
       
 
   deploy-to-staging:
