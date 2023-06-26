@@ -50,6 +50,7 @@ jobs:
         run: |
           echo "Lock status: ${{ steps.lock.outputs.locked }}"
           echo "Locked branch: ${{ steps.lock.outputs.branch }}"
+          echo "Branch name: ${{ env.BRANCH_NAME }}"
           exit 1
 
       - uses: khan/pull-request-comment-trigger@v1.1.0
