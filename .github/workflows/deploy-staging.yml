@@ -1,8 +1,8 @@
 name: deploy-to-staging-on-comment
 
 on:
-  issue_comment:
-    types: [created]
+  pull_request:
+    types: [ labeled ]
     # Only run workflow if the comment contains the word '.deploy'
     # or if the comment contains the word '.lock' or '.unlock'
     # and the comment was made by the owner of the repository
@@ -13,33 +13,27 @@ permissions:
 
 jobs:
   lock-or-unlock:
-    if: github.event.issue.pull_request && ((contains(github.event.comment.body, '.lock') || contains(github.event.comment.body, '.unlock')))
+    if: ${{ github.event.label.name == 'lock' }} 
     runs-on: ubuntu-latest
     steps:
       # Lock or Unlock via a comment (ex: .lock or .unlock)
       - uses: github/lock@v2.0.1
         id: lock
 
+      
+
   deploy-to-staging:
     runs-on: ubuntu-latest
-    if: github.event.issue.pull_request && contains(github.event.comment.body, '.deploy')
+    if: ${{ github.event.label.name == 'deploy' }} 
     env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         DEPLOYED: FALSE
 
     steps:
-      - uses: khan/pull-request-comment-trigger@v1.1.0
-        with:
-          trigger: ".deploy"
-          reaction: eyes
-
       - uses: github/lock@v2.0.1
         id: lock
         with:
           mode: check
-
-      - uses: xt0rted/pull-request-comment-branch@v2
-        id: comment-branch
 
       - name: Show locked status
         run: |
@@ -47,11 +41,10 @@ jobs:
             echo "Locked branch: ${{ steps.lock.outputs.branch }}"
 
       - name: Run deployment
-        if: steps.lock.outputs.locked == 'false' || contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch)
+        if: steps.lock.outputs.locked == 'false'
         run: |
           echo "Lock status: ${{ steps.lock.outputs.locked }}"
           echo "Locked branch: ${{ steps.lock.outputs.branch }}"
-          echo "Branch name: ${{ steps.comment-branch.outputs.head_ref }}"
           echo DEPLOYED=TRUE >> $GITHUB_ENV
 
       - uses: khan/pull-request-comment-trigger@v1.1.0
@@ -61,7 +54,7 @@ jobs:
           reaction: rocket
       
       - name: Exit if locked
-        if: steps.lock.outputs.locked == 'true' && !contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch)
+        if: steps.lock.outputs.locked == 'true'
         uses: actions/github-script@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
