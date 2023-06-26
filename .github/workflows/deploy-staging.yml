@@ -55,7 +55,7 @@ jobs:
           reaction: rocket
 
       - name: Exit if locked
-        if: steps.lock.outputs.locked == 'true'
+        if: steps.lock.outputs.locked == 'true' && !contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch)
         uses: actions/github-script@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
