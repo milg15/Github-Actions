@@ -26,11 +26,12 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: 'Issue ' + (github.context.payload.action === 'locked' ? 'locked' : 'unlocked') + ' by ' + github.context.actor
+              body: 'Issue by ' + github.context.actor
             })
+
   deploy-to-staging:
     runs-on: ubuntu-latest
-    if: github.event.issue.pull_request && contains(github.event.comment.body, '/deploy') # only run on pull request comments
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '.deploy')
     steps:
       - uses: github/lock@v2.0.1
         id: lock
@@ -41,13 +42,13 @@ jobs:
         if: ${{ steps.lock.outputs.locked == 'locked' }}
         run: |
           echo "Lock status: ${{ steps.lock.outputs.locked }}"
-          echo "Locked by: ${{ steps.lock.outputs.locked_by }}"
+          echo "Locked by: ${{ steps.lock.outputs.created_by }}"
           exit 1
 
       - uses: khan/pull-request-comment-trigger@v1.1.0
         id: check
         with:
-          trigger: "/deploy"
+          trigger: ".deploy"
           reaction: rocket
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
