@@ -38,6 +38,10 @@ jobs:
         with:
           mode: check
 
+      - name: Show locked status
+        run: |
+            echo "Lock status: ${{ steps.lock.outputs.locked }}"
+
       - name: Exit if locked
         if: ${{ steps.lock.outputs.locked == 'locked' }}
         run: |
