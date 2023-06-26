@@ -25,8 +25,14 @@ jobs:
     if: github.event.issue.pull_request && contains(github.event.comment.body, '.deploy')
     env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        DEPLOYED: FALSE
 
     steps:
+      - uses: khan/pull-request-comment-trigger@v1.1.0
+        with:
+          trigger: ".deploy"
+          reaction: eyes
+
       - uses: github/lock@v2.0.1
         id: lock
         with:
@@ -46,14 +52,14 @@ jobs:
           echo "Lock status: ${{ steps.lock.outputs.locked }}"
           echo "Locked branch: ${{ steps.lock.outputs.branch }}"
           echo "Branch name: ${{ steps.comment-branch.outputs.head_ref }}"
+          echo DEPLOYED=TRUE >> $GITHUB_ENV
 
       - uses: khan/pull-request-comment-trigger@v1.1.0
-        if: success()
-        id: check
+        if: contains(env.DEPLOYED, 'TRUE')
         with:
           trigger: ".deploy"
           reaction: rocket
-
+      
       - name: Exit if locked
         if: steps.lock.outputs.locked == 'true' && !contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch)
         uses: actions/github-script@v3
@@ -66,3 +72,10 @@ jobs:
               repo: context.repo.repo,
               body: 'This is a failed deployment'
             })
+            
+      - uses: khan/pull-request-comment-trigger@v1.1.0
+        if: contains(env.DEPLOYED, 'FALSE')
+        with:
+          trigger: ".deploy"
+          reaction: rocket
+    
