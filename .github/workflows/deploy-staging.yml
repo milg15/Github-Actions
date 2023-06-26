@@ -41,9 +41,14 @@ jobs:
       - name: Show locked status
         run: |
             echo "Lock status: ${{ steps.lock.outputs.locked }}"
+            echo "Github context: ${{ toJson(github) }}"
+            echo "Lock context: ${{ toJson(steps.lock) }}"
+            echo "Locked by: ${{ steps.lock.outputs.created_by }}"
+            echo "Locked at: ${{ steps.lock.outputs.created_at }}"
+            echo "Locked until: ${{ steps.lock.outputs.expires_at }}"
 
       - name: Exit if locked
-        if: ${{ steps.lock.outputs.locked == 'locked' }}
+        if: ${{ steps.lock.outputs.locked == 'true' }}
         run: |
           echo "Lock status: ${{ steps.lock.outputs.locked }}"
           echo "Locked by: ${{ steps.lock.outputs.created_by }}"
