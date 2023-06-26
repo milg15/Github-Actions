@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   lock-or-unlock:
-    if: ${{ github.event.issue.pull_request }} && contains(github.event.comment.body, '.lock') || contains(github.event.comment.body, '.unlock')
+    if: ${{ github.event.issue.pull_request && (contains(github.event.comment.body, '.lock') ||contains(github.event.comment.body, '.unlock')) }}
     runs-on: ubuntu-latest
     steps:
       # Lock or Unlock via a comment (ex: .lock or .unlock)
@@ -34,7 +34,7 @@ jobs:
 
   deploy-to-staging:
     runs-on: ubuntu-latest
-    if: github.event.issue.pull_request && contains(github.event.comment.body, '.deploy')
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '.deploy') }}
     env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
