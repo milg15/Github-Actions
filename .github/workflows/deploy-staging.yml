@@ -71,6 +71,7 @@ jobs:
         run: |
             echo "Lock status: ${{ steps.lock.outputs.locked }}"
             echo "Locked branch: ${{ steps.lock.outputs.branch }}"
+            echo "Github context: ${{ toJson(github) }}"
 
       - name: Run deployment
         if: steps.lock.outputs.locked == 'false'
@@ -78,12 +79,6 @@ jobs:
           echo "Lock status: ${{ steps.lock.outputs.locked }}"
           echo "Locked branch: ${{ steps.lock.outputs.branch }}"
           echo DEPLOYED=TRUE >> $GITHUB_ENV
-
-      - uses: khan/pull-request-comment-trigger@v1.1.0
-        if: contains(env.DEPLOYED, 'TRUE')
-        with:
-          trigger: ".deploy"
-          reaction: rocket
       
       - name: Exit if locked
         if: steps.lock.outputs.locked == 'true'
@@ -97,10 +92,4 @@ jobs:
               repo: context.repo.repo,
               body: 'This is a failed deployment'
             })
-            
-      - uses: khan/pull-request-comment-trigger@v1.1.0
-        if: contains(env.DEPLOYED, 'FALSE')
-        with:
-          trigger: ".deploy"
-          reaction: rocket
     
