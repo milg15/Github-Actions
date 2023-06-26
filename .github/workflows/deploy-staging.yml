@@ -43,6 +43,7 @@ jobs:
         id: lock
         with:
           mode: check
+
       - uses: xt0rted/pull-request-comment-branch@v2
         id: comment-branch
 
@@ -52,7 +53,8 @@ jobs:
             echo "Locked branch: ${{ steps.lock.outputs.branch }}"
 
       - name: Exit if locked
-        if: ${{ steps.lock.outputs.locked == 'true' }} && ${{ steps.lock.outputs.branch != steps.comment-branch.outputs.head_ref }}
+
+        if: ${{ steps.lock.outputs.locked == 'true' }} && ${{ contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch) }}
         run: |
           echo "Lock status: ${{ steps.lock.outputs.locked }}"
           echo "Locked branch: ${{ steps.lock.outputs.branch }}"
