@@ -32,6 +32,8 @@ jobs:
   deploy-to-staging:
     runs-on: ubuntu-latest
     if: github.event.issue.pull_request && contains(github.event.comment.body, '.deploy')
+    env:
+        BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
     steps:
       - uses: github/lock@v2.0.1
         id: lock
@@ -41,17 +43,13 @@ jobs:
       - name: Show locked status
         run: |
             echo "Lock status: ${{ steps.lock.outputs.locked }}"
-            echo "Github context: ${{ toJson(github) }}"
-            echo "Lock context: ${{ toJson(steps.lock) }}"
-            echo "Locked by: ${{ steps.lock.outputs.created_by }}"
-            echo "Locked at: ${{ steps.lock.outputs.created_at }}"
-            echo "Locked until: ${{ steps.lock.outputs.expires_at }}"
+            echo "Locked branch: ${{ steps.lock.outputs.branch }}"
 
       - name: Exit if locked
-        if: ${{ steps.lock.outputs.locked == 'true' }}
+        if: ${{ steps.lock.outputs.locked == 'true' }} && ${{ steps.lock.outputs.branch != env.BRANCH_NAME }}
         run: |
           echo "Lock status: ${{ steps.lock.outputs.locked }}"
-          echo "Locked by: ${{ steps.lock.outputs.created_by }}"
+          echo "Locked branch: ${{ steps.lock.outputs.branch }}"
           exit 1
 
       - uses: khan/pull-request-comment-trigger@v1.1.0
