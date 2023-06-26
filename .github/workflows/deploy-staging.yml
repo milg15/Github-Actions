@@ -54,7 +54,7 @@ jobs:
 
       - name: Exit if locked
 
-        if: ${{ steps.lock.outputs.locked == 'true' }} && ${{ contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch) }}
+        if: ${{ steps.lock.outputs.locked == 'true' }} && ${{ ! contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch) }}
         run: |
           echo "Lock status: ${{ steps.lock.outputs.locked }}"
           echo "Locked branch: ${{ steps.lock.outputs.branch }}"
