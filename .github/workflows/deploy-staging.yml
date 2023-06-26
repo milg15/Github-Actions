@@ -3,6 +3,9 @@ name: deploy-to-staging-on-comment
 on:
   issue_comment:
     types: [created]
+    # Only run workflow if the comment contains the word '.deploy'
+    # or if the comment contains the word '.lock' or '.unlock'
+    # and the comment was made by the owner of the repository
 
 permissions:
   pull-requests: write
@@ -10,7 +13,7 @@ permissions:
 
 jobs:
   lock-or-unlock:
-    if: ${{ github.event.issue.pull_request }} # only run on pull request comments
+    if: ${{ github.event.issue.pull_request }} && contains(github.event.comment.body, '.lock') || contains(github.event.comment.body, '.unlock')
     runs-on: ubuntu-latest
     steps:
       # Lock or Unlock via a comment (ex: .lock or .unlock)
@@ -33,12 +36,15 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.issue.pull_request && contains(github.event.comment.body, '.deploy')
     env:
-        BRANCH_NAME: ${{ github.ref_name || github.head_ref }} 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       - uses: github/lock@v2.0.1
         id: lock
         with:
           mode: check
+      - uses: xt0rted/pull-request-comment-branch@v2
+        id: comment-branch
 
       - name: Show locked status
         run: |
@@ -46,11 +52,11 @@ jobs:
             echo "Locked branch: ${{ steps.lock.outputs.branch }}"
 
       - name: Exit if locked
-        if: ${{ steps.lock.outputs.locked == 'true' }} && ${{ steps.lock.outputs.branch != env.BRANCH_NAME }}
+        if: ${{ steps.lock.outputs.locked == 'true' }} && ${{ steps.lock.outputs.branch != steps.comment-branch.outputs.head_ref }}
         run: |
           echo "Lock status: ${{ steps.lock.outputs.locked }}"
           echo "Locked branch: ${{ steps.lock.outputs.branch }}"
-          echo "Branch name: ${{ env.BRANCH_NAME }}"
+          echo "Branch name: ${{ steps.comment-branch.outputs.head_ref }}"
           exit 1
 
       - uses: khan/pull-request-comment-trigger@v1.1.0
@@ -58,8 +64,6 @@ jobs:
         with:
           trigger: ".deploy"
           reaction: rocket
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Run deployment
         if: ${{ steps.check.outputs.triggered == 'true' }}
