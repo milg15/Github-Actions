@@ -1,11 +1,10 @@
-name: deploy-to-staging-on-comment
+name: lock-or-deploy-to-staging-on-comment
 
 on:
   issue_comment:
     types: [created]
     # Only run workflow if the comment contains the word '.deploy'
     # or if the comment contains the word '.lock' or '.unlock'
-    # and the comment was made by the owner of the repository
 
 permissions:
   pull-requests: write
@@ -35,11 +34,6 @@ jobs:
 
       - uses: xt0rted/pull-request-comment-branch@v2
         id: comment-branch
-
-      - name: Show locked status
-        run: |
-            echo "Lock status: ${{ steps.lock.outputs.locked }}"
-            echo "Locked branch: ${{ steps.lock.outputs.branch }}"
 
       - name: Run deployment
         if: steps.lock.outputs.locked == 'false' || contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch)
