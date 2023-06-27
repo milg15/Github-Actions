@@ -24,15 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.issue.pull_request && contains(github.event.comment.body, '.deploy')
     env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        DEPLOYED: FALSE
+        DEPLOYED: "FALSE"
 
     steps:
-      - uses: khan/pull-request-comment-trigger@v1.1.0
-        with:
-          trigger: ".deploy"
-          reaction: eyes
-
       - uses: github/lock@v2.0.1
         id: lock
         with:
@@ -77,5 +71,5 @@ jobs:
         if: contains(env.DEPLOYED, 'FALSE')
         with:
           trigger: ".deploy"
-          reaction: rocket
+          reaction: -1
     
