@@ -38,19 +38,16 @@ jobs:
       - name: Run deployment
         if: steps.lock.outputs.locked == 'false' || contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch)
         run: |
-          echo "Lock status: ${{ steps.lock.outputs.locked }}"
-          echo "Locked branch: ${{ steps.lock.outputs.branch }}"
-          echo "Branch name: ${{ steps.comment-branch.outputs.head_ref }}"
-          echo DEPLOYED=TRUE >> $GITHUB_ENV
+          echo DEPLOY=TRUE >> $GITHUB_ENV
 
       - uses: khan/pull-request-comment-trigger@v1.1.0
-        if: contains(env.DEPLOYED, 'TRUE')
+        if: contains(env.DEPLOYED, 'FALSE')
         with:
           trigger: ".deploy"
-          reaction: rocket
+          reaction: -1
       
       - name: Exit if locked
-        if: steps.lock.outputs.locked == 'true' && !contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch)
+        if: contains(env.DEPLOYED, 'TRUE')
         uses: actions/github-script@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -61,10 +58,30 @@ jobs:
               repo: context.repo.repo,
               body: 'This pull request is locked. Please wait for the current deployment to finish.'
             })
-            
+            process.exit(1)
+
+      - uses: actions/checkout@v2
+
+      - id: "auth"
+        uses: google-github-actions/auth@v0.2.0
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: "Set up Cloud SDK"
+        uses: google-github-actions/setup-gcloud@v0.2.0
+
+      - name: "Use gcloud CLI"
+        run: 'gcloud info'
+
+      - name: "Start Google Cloud Build trigger"
+        run: |
+          gcloud builds triggers run ${{ secrets.GCP_BUILD_STAGING_TRIGGER_ID }} \
+            --branch=$GITHUB_HEAD_REF 
+
       - uses: khan/pull-request-comment-trigger@v1.1.0
-        if: contains(env.DEPLOYED, 'FALSE')
+        if: contains(env.DEPLOYED, 'TRUE')
         with:
           trigger: ".deploy"
-          reaction: -1
+          reaction: rocket
+      
     
