@@ -1,8 +1,8 @@
 name: deploy-to-staging-on-comment
 
 on:
-  pull_request:
-    types: [ labeled ]
+  issue_comment:
+    types: [created]
     # Only run workflow if the comment contains the word '.deploy'
     # or if the comment contains the word '.lock' or '.unlock'
     # and the comment was made by the owner of the repository
@@ -13,75 +13,55 @@ permissions:
 
 jobs:
   lock-or-unlock:
-    if: ${{ github.event.label.name == 'lock' }} 
+    if: github.event.issue.pull_request && ((contains(github.event.comment.body, '.lock') || contains(github.event.comment.body, '.unlock')))
     runs-on: ubuntu-latest
     steps:
-      - uses: github/lock@v2.0.1
-        id: lock
-        with:
-          mode: check
-
       # Lock or Unlock via a comment (ex: .lock or .unlock)
-      - name: Exit if locked
-        if: steps.lock.outputs.locked == 'false'
-        uses: actions/github-script@v3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            github.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '.lock'
-            })
-
-      - name: Exit if unlocked
-        if: steps.lock.outputs.locked == 'true'
-        uses: actions/github-script@v3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            github.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '.unlock'
-            })
-
       - uses: github/lock@v2.0.1
-        if: success() 
-        with:
-          mode: lock
-      
+        id: lock      
 
   deploy-to-staging:
     runs-on: ubuntu-latest
-    if: ${{ github.event.label.name == 'deploy' }} 
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '.deploy')
     env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         DEPLOYED: FALSE
 
     steps:
+      - uses: khan/pull-request-comment-trigger@v1.1.0
+        with:
+          trigger: ".deploy"
+          reaction: eyes
+
       - uses: github/lock@v2.0.1
         id: lock
         with:
           mode: check
 
+      - uses: xt0rted/pull-request-comment-branch@v2
+        id: comment-branch
+
       - name: Show locked status
         run: |
             echo "Lock status: ${{ steps.lock.outputs.locked }}"
             echo "Locked branch: ${{ steps.lock.outputs.branch }}"
-            echo "Github context: ${{ toJson(github) }}"
-            
-      - name: removelabel
-        uses: buildsville/add-remove-label@v2.0.0
+
+      - name: Run deployment
+        if: steps.lock.outputs.locked == 'false' || contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch)
+        run: |
+          echo "Lock status: ${{ steps.lock.outputs.locked }}"
+          echo "Locked branch: ${{ steps.lock.outputs.branch }}"
+          echo "Branch name: ${{ steps.comment-branch.outputs.head_ref }}"
+          echo DEPLOYED=TRUE >> $GITHUB_ENV
+
+      - uses: khan/pull-request-comment-trigger@v1.1.0
+        if: contains(env.DEPLOYED, 'TRUE')
         with:
-          token: ${{secrets.GITHUB_TOKEN}}
-          labels: deploy
-          type: remove
-  
+          trigger: ".deploy"
+          reaction: rocket
+      
       - name: Exit if locked
-        if: steps.lock.outputs.locked == 'true' && !contains(steps.lock.outputs.branch, github.head_ref)
+        if: steps.lock.outputs.locked == 'true' && !contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch)
         uses: actions/github-script@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -90,14 +70,12 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: 'This is a failed deployment'
+              body: 'This pull request is locked. Please wait for the current deployment to finish.'
             })
-            # Exit the workflow
-            core.setFailed('This is a failed deployment')
+            
+      - uses: khan/pull-request-comment-trigger@v1.1.0
+        if: contains(env.DEPLOYED, 'FALSE')
+        with:
+          trigger: ".deploy"
+          reaction: rocket
     
-      - name: Run deployment
-        if: steps.lock.outputs.locked == 'false' || contains(steps.lock.outputs.branch, github.head_ref)
-        run: |
-          echo "Lock status: ${{ steps.lock.outputs.locked }}"
-          echo "Locked branch: ${{ steps.lock.outputs.branch }}"
-          echo DEPLOYED=TRUE >> $GITHUB_ENV
