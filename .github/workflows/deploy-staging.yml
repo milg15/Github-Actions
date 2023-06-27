@@ -1,8 +1,10 @@
-name: deploy-to-staging-on-comment
+name: lock-or-deploy-to-staging-on-comment
 
 on:
   issue_comment:
     types: [created]
+    # Only run workflow if the comment contains the word '.deploy'
+    # or if the comment contains the word '.lock' or '.unlock'
 
 permissions:
   pull-requests: write
@@ -10,50 +12,42 @@ permissions:
 
 jobs:
   lock-or-unlock:
-    if: ${{ github.event.issue.pull_request }} # only run on pull request comments
+    if: github.event.issue.pull_request && ((contains(github.event.comment.body, '.lock') || contains(github.event.comment.body, '.unlock')))
     runs-on: ubuntu-latest
     steps:
       # Lock or Unlock via a comment (ex: .lock or .unlock)
       - uses: github/lock@v2.0.1
-        id: lock
+        id: lock      
 
-      # Comment on the issue with the result of the lock action
-      - uses: actions/github-script@v3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            github.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: 'Issue ' + (github.context.payload.action === 'locked' ? 'locked' : 'unlocked') + ' by ' + github.context.actor
-            })
   deploy-to-staging:
     runs-on: ubuntu-latest
-    if: github.event.issue.pull_request && contains(github.event.comment.body, '/deploy') # only run on pull request comments
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '.deploy')
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DEPLOYED: "FALSE"
+
     steps:
       - uses: github/lock@v2.0.1
         id: lock
         with:
           mode: check
 
-      - name: Exit if locked
-        if: ${{ steps.lock.outputs.locked == 'locked' }}
-        run: |
-          echo "Lock status: ${{ steps.lock.outputs.locked }}"
-          echo "Locked by: ${{ steps.lock.outputs.locked_by }}"
-          exit 1
-
-      - uses: khan/pull-request-comment-trigger@v1.1.0
-        id: check
-        with:
-          trigger: "/deploy"
-          reaction: rocket
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      - uses: xt0rted/pull-request-comment-branch@v2
+        id: comment-branch
 
       - name: Run deployment
-        if: ${{ steps.check.outputs.triggered == 'true' }}
+        if: steps.lock.outputs.locked == 'false' || contains(steps.comment-branch.outputs.head_ref, steps.lock.outputs.branch)
+        run: |
+          echo DEPLOY=TRUE >> $GITHUB_ENV
+
+      - uses: khan/pull-request-comment-trigger@v1.1.0
+        if: contains(env.DEPLOYED, 'FALSE')
+        with:
+          trigger: ".deploy"
+          reaction: -1
+      
+      - name: Exit if locked
+        if: contains(env.DEPLOYED, 'TRUE')
         uses: actions/github-script@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -62,5 +56,33 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '/gcbrun'
+              body: 'This pull request is locked. Please wait for the current deployment to finish.'
             })
+            process.exit(1)
+
+      - uses: actions/checkout@v2
+
+      - id: "Authenticate"
+        uses: google-github-actions/auth@v1.1.1
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: "Set up Cloud SDK"
+        uses: google-github-actions/setup-gcloud@v0.2.0
+
+      - name: "Use gcloud CLI"
+        run: 'gcloud info'
+
+      - name: "Start Google Cloud Build trigger"
+        run: |
+          gcloud builds triggers run ${{ secrets.GCP_BUILD_STAGING_TRIGGER_ID }} \
+            --branch=$GITHUB_HEAD_REF 
+
+      - uses: khan/pull-request-comment-trigger@v1.1.0
+        if: contains(env.DEPLOYED, 'TRUE')
+        with:
+          trigger: ".deploy"
+          reaction: rocket
+      
+    
